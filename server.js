@@ -9,6 +9,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Trang chủ kiểm tra trạng thái Server (GET /)
+app.get('/', (req, res) => {
+    res.send('<h1>TikZ Compiler Server đang hoạt động tốt!</h1><p>Gửi POST request tới <code>/compile</code> để biên dịch TikZ.</p>');
+});
+
+// Endpoint biên dịch mã TikZ (POST /compile)
 app.post('/compile', (req, res) => {
     const { tikzCode } = req.body;
     if (!tikzCode) return res.status(400).json({ error: 'Thiếu mã TikZ' });
@@ -43,7 +49,6 @@ ${tikzCode}
     exec(cmd, (error) => {
         if (fs.existsSync(svgPath)) {
             const svgContent = fs.readFileSync(svgPath, 'utf8');
-            // Dọn dẹp tệp tạm
             fs.rmSync(workDir, { recursive: true, force: true });
             return res.json({ success: true, svg: svgContent });
         } else {
