@@ -1,0 +1,62 @@
+const express = require('express');
+const cors = require('cors');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.post('/compile', (req, res) => {
+    const { tikzCode } = req.body;
+    if (!tikzCode) return res.status(400).json({ error: 'Thiếu mã TikZ' });
+
+    const id = crypto.randomBytes(8).toString('hex');
+    const workDir = path.join(__dirname, 'tmp', id);
+    fs.mkdirSync(workDir, { recursive: true });
+
+    const texPath = path.join(workDir, 'document.tex');
+    const pdfPath = path.join(workDir, 'document.pdf');
+    const svgPath = path.join(workDir, 'document.svg');
+
+    const fullTexDocument = `
+\\documentclass[tikz,border=2pt]{standalone}
+\\usepackage[utf8]{vietnam}
+\\usepackage{amsmath,amssymb}
+\\usepackage{tikz}
+\\usepackage{tkz-tab}
+\\usepackage{pgfplots}
+\\pgfplotsset{compat=1.18}
+\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d}
+\\begin{document}
+${tikzCode}
+\\end{document}
+`;
+
+    fs.writeFileSync(texPath, fullTexDocument);
+
+    // Biên dịch TEX -> PDF -> SVG
+    const cmd = `pdflatex -interaction=nonstopmode -output-directory="${workDir}" "${texPath}" && pdf2svg "${pdfPath}" "${svgPath}"`;
+
+    exec(cmd, (error) => {
+        if (fs.existsSync(svgPath)) {
+            const svgContent = fs.readFileSync(svgPath, 'utf8');
+            // Dọn dẹp tệp tạm
+            fs.rmSync(workDir, { recursive: true, force: true });
+            return res.json({ success: true, svg: svgContent });
+        } else {
+            let logContent = 'Không thể tạo SVG';
+            const logPath = path.join(workDir, 'document.log');
+            if (fs.existsSync(logPath)) {
+                logContent = fs.readFileSync(logPath, 'utf8').substring(0, 1000);
+            }
+            fs.rmSync(workDir, { recursive: true, force: true });
+            return res.status(500).json({ error: 'Lỗi biên dịch LaTeX', log: logContent });
+        }
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`TikZ Server đang chạy trên port ${PORT}`));
