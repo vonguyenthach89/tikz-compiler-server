@@ -1,11 +1,16 @@
-FROM reitzig/texlive-base:latest
+FROM node:18-bookworm-slim
 
-# Cài đặt Node.js và pdf2svg
-RUN apt-get update && apt-get install -y \
-    curl \
+# Bỏ qua các hộp thoại tương tác trong quá trình apt-get install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Cài đặt TeX Live, các gói vẽ hình (tkz-tab, pgfplots,...) và pdf2svg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-pictures \
+    texlive-science \
+    texlive-lang-other \
     pdf2svg \
-    && curl -sL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
