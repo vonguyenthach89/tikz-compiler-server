@@ -31,13 +31,13 @@ app.post('/compile', (req, res) => {
     const fullTexDocument = `
 \\documentclass[tikz,border=2pt]{standalone}
 \\usepackage[utf8]{vietnam}
-\\usepackage{amsmath,amssymb,grffile,makecell,fancyhdr,enumerate,arcs,physics,tasks,mathrsfs,graphics,fontawesome}
+\\usepackage{amsmath,amssymb}
 \\usepackage{enumitem}
-\\usepackage{tikz,tkz-tab,tikz-3dplot,tkz-euclide,tabvar,pgfplots,esvect}
-\\usepackage{twemojis}
+\\usepackage{tikz}
+\\usepackage{tkz-tab}
 \\usepackage{pgfplots}
 \\pgfplotsset{compat=1.18}
-\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d,shapes.geometric,shadings}
+\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d}
 
 % Định nghĩa các lệnh toán học bổ sung
 \\newcommand{\\hoac}[1]{\\left[\\begin{aligned}#1\\end{aligned}\\right.}
