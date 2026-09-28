@@ -27,10 +27,12 @@ app.post('/compile', (req, res) => {
     const pdfPath = path.join(workDir, 'document.pdf');
     const svgPath = path.join(workDir, 'document.svg');
 
+    // Bổ sung đầy đủ các gói lệnh LaTeX cần thiết bao gồm enumitem
     const fullTexDocument = `
 \\documentclass[tikz,border=2pt]{standalone}
 \\usepackage[utf8]{vietnam}
 \\usepackage{amsmath,amssymb}
+\\usepackage{enumitem}
 \\usepackage{tikz}
 \\usepackage{tkz-tab}
 \\usepackage{pgfplots}
