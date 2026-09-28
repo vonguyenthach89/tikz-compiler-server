@@ -27,17 +27,22 @@ app.post('/compile', (req, res) => {
     const pdfPath = path.join(workDir, 'document.pdf');
     const svgPath = path.join(workDir, 'document.svg');
 
-    // Bổ sung đầy đủ các gói lệnh LaTeX cần thiết bao gồm enumitem
+    // Bổ sung các định nghĩa lệnh custom (\hoac, \heva) và gói enumitem trong Preamble
     const fullTexDocument = `
 \\documentclass[tikz,border=2pt]{standalone}
 \\usepackage[utf8]{vietnam}
-\\usepackage{amsmath,amssymb}
+\\usepackage{amsmath,amssymb,grffile,makecell,fancyhdr,enumerate,arcs,physics,tasks,mathrsfs,graphics,fontawesome}
 \\usepackage{enumitem}
-\\usepackage{tikz}
-\\usepackage{tkz-tab}
+\\usepackage{tikz,tkz-tab,tikz-3dplot,tkz-euclide,tabvar,pgfplots,esvect}
+\\usepackage{twemojis}
 \\usepackage{pgfplots}
 \\pgfplotsset{compat=1.18}
-\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d}
+\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d,shapes.geometric,shadings}
+
+% Định nghĩa các lệnh toán học bổ sung
+\\newcommand{\\hoac}[1]{\\left[\\begin{aligned}#1\\end{aligned}\\right.}
+\\newcommand{\\heva}[1]{\\left\\{\\begin{aligned}#1\\end{aligned}\\right.}
+
 \\begin{document}
 ${tikzCode}
 \\end{document}
