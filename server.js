@@ -1,74 +1,80 @@
 const express = require('express');
-const cors = require('cors');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-// Trang chủ kiểm tra trạng thái Server (GET /)
-app.get('/', (req, res) => {
-    res.send('<h1>TikZ Compiler Server đang hoạt động tốt!</h1><p>Gửi POST request tới <code>/compile</code> để biên dịch TikZ.</p>');
-});
+// Tùy chọn bảo mật: Đặt Secret Key để tránh bị người ngoài xài chùa API
+const API_SECRET_KEY = process.env.API_SECRET_KEY || "MySuperSecretKey123";
 
-// Endpoint biên dịch mã TikZ (POST /compile)
-app.post('/compile', (req, res) => {
-    const { tikzCode } = req.body;
-    if (!tikzCode) return res.status(400).json({ error: 'Thiếu mã TikZ' });
+app.post('/compile-tikz', (req, res) => {
+  const { tikzCode, apiKey } = req.body;
 
-    const id = crypto.randomBytes(8).toString('hex');
-    const workDir = path.join(__dirname, 'tmp', id);
-    fs.mkdirSync(workDir, { recursive: true });
+  // Kiểm tra Key bảo mật
+  if (apiKey !== API_SECRET_KEY) {
+    return res.status(401).json({ success: false, error: "Unauthorized: Key không hợp lệ" });
+  }
 
-    const texPath = path.join(workDir, 'document.tex');
-    const pdfPath = path.join(workDir, 'document.pdf');
-    const svgPath = path.join(workDir, 'document.svg');
+  if (!tikzCode) {
+    return res.status(400).json({ success: false, error: "Thiếu mã tikzCode" });
+  }
 
-    // Bổ sung các định nghĩa lệnh custom (\hoac, \heva) và gói enumitem trong Preamble
-    const fullTexDocument = `
+  const jobFolder = path.join(__dirname, 'temp');
+  if (!fs.existsSync(jobFolder)) fs.mkdirSync(jobFolder);
+
+  const fileId = crypto.randomBytes(8).toString('hex');
+  const texPath = path.join(jobFolder, `${fileId}.tex`);
+  const dNodePath = path.join(jobFolder, `${fileId}.dvi`);
+  const svgPath = path.join(jobFolder, `${fileId}.svg`);
+
+  // Bọc mã TikZ vào document LaTeX chuẩn
+  const fullLatexCode = `
 \\documentclass[tikz,border=2pt]{standalone}
 \\usepackage[utf8]{vietnam}
 \\usepackage{amsmath,amssymb}
-\\usepackage{enumitem}
-\\usepackage{tikz}
-\\usepackage{tkz-tab}
-\\usepackage{pgfplots}
-\\pgfplotsset{compat=1.18}
-\\usetikzlibrary{arrows.meta,calc,intersections,angles,quotes,patterns,through,backgrounds,3d}
-
-% Định nghĩa các lệnh toán học bổ sung
-\\newcommand{\\hoac}[1]{\\left[\\begin{aligned}#1\\end{aligned}\\right.}
-\\newcommand{\\heva}[1]{\\left\\{\\begin{aligned}#1\\end{aligned}\\right.}
-
+\\usepackage{tikz,tkz-tab,tkz-euclide}
+\\usetikzlibrary{shapes,arrows,calc,intersections,angles,quotes}
 \\begin{document}
 ${tikzCode}
 \\end{document}
-`;
+  `;
 
-    fs.writeFileSync(texPath, fullTexDocument);
+  fs.writeFileSync(texPath, fullLatexCode, 'utf8');
 
-    // Biên dịch TEX -> PDF -> SVG
-    const cmd = `pdflatex -interaction=nonstopmode -output-directory="${workDir}" "${texPath}" && pdf2svg "${pdfPath}" "${svgPath}"`;
+  // Lệnh biên dịch LaTeX -> DVI -> SVG
+  const compileCmd = `pdflatex -interaction=batchmode -output-format=dvi -output-directory="${jobFolder}" "${texPath}" && dvisvgm --no-fonts "${dNodePath}" -o "${svgPath}"`;
 
-    exec(cmd, (error) => {
-        if (fs.existsSync(svgPath)) {
-            const svgContent = fs.readFileSync(svgPath, 'utf8');
-            fs.rmSync(workDir, { recursive: true, force: true });
-            return res.json({ success: true, svg: svgContent });
-        } else {
-            let logContent = 'Không thể tạo SVG';
-            const logPath = path.join(workDir, 'document.log');
-            if (fs.existsSync(logPath)) {
-                logContent = fs.readFileSync(logPath, 'utf8').substring(0, 1000);
-            }
-            fs.rmSync(workDir, { recursive: true, force: true });
-            return res.status(500).json({ error: 'Lỗi biên dịch LaTeX', log: logContent });
-        }
+  exec(compileCmd, { timeout: 15000 }, (error, stdout, stderr) => {
+    let svgData = null;
+    let isSuccess = false;
+    let errMsg = "";
+
+    if (fs.existsSync(svgPath)) {
+      svgData = fs.readFileSync(svgPath, 'utf8');
+      isSuccess = true;
+    } else {
+      errMsg = "Lỗi biên dịch LaTeX/TikZ. Kiểm tra cú pháp.";
+    }
+
+    // Dọn dẹp tất cả các file rác sinh ra trong quá trình build
+    const extensions = ['.tex', '.dvi', '.log', '.aux', '.svg'];
+    extensions.forEach(ext => {
+      const p = path.join(jobFolder, `${fileId}${ext}`);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
     });
+
+    if (isSuccess) {
+      return res.json({ success: true, svg: svgData });
+    } else {
+      return res.status(500).json({ success: false, error: errMsg });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`TikZ Server đang chạy trên port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`TikZ Server đang chạy ở port ${PORT}`);
+});
