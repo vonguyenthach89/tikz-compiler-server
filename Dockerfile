@@ -9,14 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-extra \
     texlive-pictures \
     texlive-science \
-    texlive-lang-english \
-    dvisvgm \
+    texlive-lang-other \
+    pdf2svg \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR app
+WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install --production
+RUN npm install --only=production
 
 COPY . .
 
